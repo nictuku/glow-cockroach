@@ -1,2 +1,5 @@
 # glow-cockroach
-Map Reduce for CockroachDB
+Map Reduce for CockroachDB using Glow
+
+# Thanks to:
+- 
