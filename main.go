@@ -10,27 +10,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-/*
-type Log struct {
-	InfoHash string
-	Country  string
-}
-
-func Source(f *flow.FlowContext, cdbURL string, shard int) *flow.Dataset {
-	locations, err := List(cdbURL) // XXX returns only one element for now
-	if err != nil {
-		log.Fatalf("Can not list files under %s:%v", cdbURL, err)
-	}
-
-	return f.Slice(locations).Partition(shard)
-}
-
-// List generates a full list of file locations under the given
-// location, which should have a prefix of hdfs://
-func List(cdbURL string) (locations []string, err error) {
-	return []string{cdbURL}, nil
-}
-*/
 func iterate(dbURL string, fn func(rows *sql.Rows)) {
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
