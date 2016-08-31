@@ -2,8 +2,10 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"log"
 
+	_ "github.com/chrislusf/glow/driver"
 	"github.com/chrislusf/glow/flow"
 	_ "github.com/lib/pq"
 )
@@ -35,7 +37,7 @@ func iterate(dbURL string, fn func(rows *sql.Rows)) {
 		log.Printf("error connection to the database: %s", err)
 		return
 	}
-	selectQuery := "select infohash from get_peers_log"
+	selectQuery := `select rowid, infohash, country, address from get_peers_log`
 	rows, err := db.Query(selectQuery) // select infohash from get_peers_log
 	if err != nil {
 		log.Println(err) // Any way to give feedback about errors?
@@ -48,24 +50,46 @@ func iterate(dbURL string, fn func(rows *sql.Rows)) {
 
 const shards = 3
 
-func main() {
-	f := flow.New()
-	f.Source(func(ch chan string) {
+type result struct {
+	rowid    string
+	infohash string
+	country  sql.NullString
+	address  string
+}
+
+var (
+	f = flow.New()
+)
+
+func init() {
+	f.Source(func(ch chan result) {
 		iterate("postgresql://maxroach@localhost:26257/roachy?sslmode=disable", func(rows *sql.Rows) {
 			for rows.Next() {
-				var infohash string
-				if err := rows.Scan(&infohash); err != nil {
+				var r result
+				if err := rows.Scan(&r.rowid, &r.infohash, &r.country, &r.address); err != nil {
 					log.Println(err)
 				} else {
-					ch <- infohash
+					ch <- r
 				}
 			}
 		})
-	}, shards).Map(func(key string) int {
+	}, shards).Filter(func(row result) bool {
+		// find lines with empty Country
+		return !row.country.Valid // && row.country.String == ""
+	}).Map(func(row result) string {
+		return row.country.String
+	}).Map(func(key string) int {
 		return 1
 	}).Reduce(func(x int, y int) int {
 		return x + y
 	}).Map(func(x int) {
 		println("count:", x)
-	}).Run()
+	})
+
+}
+
+func main() {
+	flag.Parse()
+	flow.Ready()
+	f.Run()
 }
